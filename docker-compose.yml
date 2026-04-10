@@ -1,0 +1,13 @@
+version: "3.9"
+
+services:
+  cicd-stand:
+    build: .
+    container_name: cicd-stand
+    ports:
+      - "8000:8000"
+    volumes:
+      # --- Том для хранения загруженных релизов и результатов деплоя ---
+      - ./data:/app/data
+    environment:
+      - PYTHONUNBUFFERED=1
