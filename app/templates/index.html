@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CI/CD стенд</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <div class="app">
+    <!-- --- Верхняя панель с пайплайном --- -->
+    <section class="panel top-panel">
+      <div class="panel-header">
+        <div>
+          <h1>CI/CD Pipeline Stand</h1>
+          <p>Рабочий стенд на Python + Docker с реальными этапами и логами</p>
+        </div>
+        <div class="header-badges">
+          <span class="badge" id="globalStatus">Ожидание</span>
+          <span class="badge secondary" id="releaseName">Релиз не загружен</span>
+        </div>
+      </div>
+
+      <div class="pipeline" id="pipeline"></div>
+    </section>
+
+    <!-- --- Средняя зона --- -->
+    <section class="middle-grid">
+      <!-- --- Левый блок с описанием --- -->
+      <div class="panel">
+        <div class="panel-header">
+          <div>
+            <h2>Описание этапа</h2>
+            <p>Справка по выбранному блоку пайплайна</p>
+          </div>
+        </div>
+
+        <div class="panel-body">
+          <div class="info-title" id="stageTitle">Выбери этап</div>
+          <div class="info-text" id="stageDescription">Нажми на любой блок в верхней схеме.</div>
+
+          <div class="info-cards">
+            <div class="info-card">
+              <div class="info-card-title">Состояние</div>
+              <div class="info-card-value" id="stageStateLabel">—</div>
+            </div>
+            <div class="info-card">
+              <div class="info-card-title">Текущий релиз</div>
+              <div class="info-card-value" id="releaseMeta">—</div>
+            </div>
+            <div class="info-card">
+              <div class="info-card-title">Файлов в релизе</div>
+              <div class="info-card-value" id="filesCount">0</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- --- Правый блок с управлением --- -->
+      <div class="panel">
+        <div class="panel-header">
+          <div>
+            <h2>Управление</h2>
+            <p>Ручной режим и автоматический прогон</p>
+          </div>
+        </div>
+
+        <div class="panel-body controls-body">
+          <div class="controls-grid">
+            <button id="btnStart" class="btn btn-primary">Пуск</button>
+            <button id="btnStop" class="btn btn-danger">Стоп</button>
+            <button id="btnNext" class="btn">Вперёд</button>
+            <button id="btnPrev" class="btn">Назад</button>
+            <button id="btnReset" class="btn">Сброс</button>
+          </div>
+
+          <div class="status-grid">
+            <div class="status-card">
+              <div class="status-title">Текущий этап</div>
+              <div class="status-value" id="currentStageValue">—</div>
+            </div>
+            <div class="status-card">
+              <div class="status-title">Режим</div>
+              <div class="status-value" id="modeValue">Ручной</div>
+            </div>
+            <div class="status-card">
+              <div class="status-title">Статус выполнения</div>
+              <div class="status-value" id="runValue">Ожидание</div>
+            </div>
+            <div class="status-card">
+              <div class="status-title">Артефакт</div>
+              <div class="status-value small" id="artifactValue">—</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- --- Блок отладки --- -->
+    <section class="panel">
+      <div class="panel-header">
+        <div>
+          <h2>Отладка</h2>
+          <p>События, действия над релизом и результаты этапов</p>
+        </div>
+      </div>
+
+      <div class="panel-body">
+        <div class="log-box" id="logBox"></div>
+      </div>
+    </section>
+
+    <!-- --- Нижний блок --- -->
+    <section class="panel">
+      <div class="panel-header">
+        <div>
+          <h2>Релиз и сценарии аварий</h2>
+          <p>Загрузка zip-архива и имитация плохих релизов</p>
+        </div>
+      </div>
+
+      <div class="panel-body bottom-grid">
+        <!-- --- Загрузка файлов --- -->
+        <div class="upload-area">
+          <h3>Загрузка релиза</h3>
+          <p>Загрузи zip-архив проекта. Внутри обязательно должен быть <code>main.py</code>.</p>
+
+          <input type="file" id="releaseInput" accept=".zip" />
+          <button id="btnUpload" class="btn btn-primary wide">Загрузить релиз</button>
+
+          <div class="upload-meta" id="uploadMeta">
+            Архив ещё не загружен.
+          </div>
+
+          <div class="release-requirements">
+            <div>Минимальная структура:</div>
+            <pre>release.zip
+├── main.py
+└── любые_доп_файлы</pre>
+          </div>
+        </div>
+
+        <!-- --- Плохие релизы --- -->
+        <div class="bad-release-area">
+          <h3>Плохие релизы</h3>
+          <p>Включи сценарии отказа, чтобы показать падение этапов или прода.</p>
+
+          <label class="checkbox-line">
+            <input type="checkbox" id="badBuild" />
+            <span>Сломанная сборка</span>
+          </label>
+
+          <label class="checkbox-line">
+            <input type="checkbox" id="badTests" />
+            <span>Падающие тесты</span>
+          </label>
+
+          <label class="checkbox-line">
+            <input type="checkbox" id="badDeploy" />
+            <span>Ошибка деплоя</span>
+          </label>
+
+          <label class="checkbox-line">
+            <input type="checkbox" id="badProd" />
+            <span>Падение PROD после деплоя</span>
+          </label>
+
+          <button id="btnApplyFlags" class="btn wide">Применить сценарии</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
