@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>CI/CD Pipeline Demo</title>
+
+<style>
+/* --- БАЗОВЫЕ СТИЛИ --- */
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #0f172a;
+  color: #e2e8f0;
+}
+
+/* --- ОБЩИЙ КОНТЕЙНЕР --- */
+.container {
+  display: grid;
+  grid-template-rows: auto auto auto auto;
+  gap: 10px;
+  padding: 10px;
+}
+
+/* --- ОБЩИЙ СТИЛЬ БЛОКОВ --- */
+.block {
+  background: #1e293b;
+  border-radius: 10px;
+  padding: 10px;
+}
+
+/* --- ВЕРХНИЙ БЛОК --- */
+.pipeline {
+  display: flex;
+  justify-content: space-between;
+}
+
+.stage {
+  flex: 1;
+  margin: 5px;
+  padding: 15px;
+  text-align: center;
+  border-radius: 8px;
+  background: #334155;
+  cursor: pointer;
+}
+
+/* --- СОСТОЯНИЯ --- */
+.idle { background: #475569; }
+.running { background: #0284c7; }
+.success { background: #16a34a; }
+.error { background: #dc2626; }
+
+/* --- СРЕДНИЕ БЛОКИ --- */
+.middle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+/* --- КНОПКИ --- */
+button {
+  padding: 10px;
+  margin: 5px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.controls button {
+  width: 45%;
+}
+
+/* --- ЛОГ --- */
+.log {
+  height: 200px;
+  overflow-y: auto;
+  background: black;
+  padding: 10px;
+  font-family: monospace;
+}
+
+/* --- НИЖНИЙ БЛОК --- */
+.bottom {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+</style>
+
+</head>
+<body>
+
+<div class="container">
+
+<!-- 1. ВЕРХНИЙ БЛОК -->
+<div class="block">
+  <h2>CI/CD Pipeline</h2>
+  <div class="pipeline" id="pipeline"></div>
+</div>
+
+<!-- 2 + 3 СРЕДНИЕ БЛОКИ -->
+<div class="middle">
+
+  <!-- ЛЕВЫЙ -->
+  <div class="block">
+    <h3>Описание этапа</h3>
+    <div id="description">Выберите этап</div>
+  </div>
+
+  <!-- ПРАВЫЙ -->
+  <div class="block controls">
+    <h3>Управление</h3>
+    <button onclick="start()">Пуск</button>
+    <button onclick="stop()">Стоп</button><br>
+    <button onclick="next()">Вперёд</button>
+    <button onclick="prev()">Назад</button>
+  </div>
+
+</div>
+
+<!-- 4. БЛОК ОТЛАДКИ -->
+<div class="block">
+  <h3>Логи</h3>
+  <div class="log" id="log"></div>
+</div>
+
+<!-- НИЖНИЙ БЛОК -->
+<div class="bottom">
+
+  <!-- ФАЙЛЫ -->
+  <div class="block">
+    <h3>Файлы релиза</h3>
+    <input type="file" multiple onchange="handleFiles(event)">
+    <ul id="files"></ul>
+  </div>
+
+  <!-- ПЛОХИЕ РЕЛИЗЫ -->
+  <div class="block">
+    <h3>Плохие релизы</h3>
+    <label><input type="checkbox" id="badBuild"> Сломанная сборка</label><br>
+    <label><input type="checkbox" id="badTest"> Падающие тесты</label><br>
+    <label><input type="checkbox" id="badDeploy"> Ошибка деплоя</label><br>
+    <label><input type="checkbox" id="badProd"> Падение PROD</label>
+  </div>
+
+</div>
+
+</div>
+
+<script>
+
+/* --- ЭТАПЫ --- */
+const stages = [
+  {name: "Source", desc: "Получение исходников"},
+  {name: "Build", desc: "Сборка проекта"},
+  {name: "Test", desc: "Тестирование"},
+  {name: "Deploy", desc: "Деплой"},
+  {name: "PROD", desc: "Работа в проде"}
+];
+
+let current = -1;
+let timer = null;
+let running = false;
+
+/* --- РЕНДЕР ПАЙПЛАЙНА --- */
+function render() {
+  const container = document.getElementById("pipeline");
+  container.innerHTML = "";
+
+  stages.forEach((s, i) => {
+    const div = document.createElement("div");
+    div.className = "stage idle";
+    if (i < current) div.className = "stage success";
+    if (i === current) div.className = "stage running";
+
+    div.innerText = s.name;
+
+    div.onclick = () => {
+      document.getElementById("description").innerText = s.desc;
+    };
+
+    container.appendChild(div);
+  });
+}
+
+/* --- ЛОГИ --- */
+function log(text) {
+  const logDiv = document.getElementById("log");
+  logDiv.innerHTML += text + "<br>";
+  logDiv.scrollTop = logDiv.scrollHeight;
+}
+
+/* --- ОБРАБОТКА ЭТАПА --- */
+function processStep() {
+  if (current >= stages.length - 1) {
+    running = false;
+    log("Pipeline завершён");
+    return;
+  }
+
+  current++;
+  render();
+
+  const stage = stages[current];
+  log("Этап: " + stage.name);
+
+  // --- ПРОВЕРКА ОШИБОК ---
+  if (stage.name === "Build" && badBuild.checked) {
+    log("Ошибка сборки!");
+    running = false;
+    return;
+  }
+
+  if (stage.name === "Test" && badTest.checked) {
+    log("Тесты упали!");
+    running = false;
+    return;
+  }
+
+  if (stage.name === "Deploy" && badDeploy.checked) {
+    log("Ошибка деплоя!");
+    running = false;
+    return;
+  }
+
+  if (stage.name === "PROD" && badProd.checked) {
+    log("PROD упал после релиза!");
+    running = false;
+    return;
+  }
+
+  if (running) {
+    timer = setTimeout(processStep, 1000);
+  }
+}
+
+/* --- КНОПКИ --- */
+function start() {
+  if (running) return;
+  running = true;
+  log("Старт пайплайна");
+  processStep();
+}
+
+function stop() {
+  running = false;
+  clearTimeout(timer);
+  log("Остановлено");
+}
+
+function next() {
+  processStep();
+}
+
+function prev() {
+  if (current > -1) current--;
+  render();
+  log("Назад");
+}
+
+/* --- ФАЙЛЫ --- */
+function handleFiles(e) {
+  const list = document.getElementById("files");
+  list.innerHTML = "";
+  Array.from(e.target.files).forEach(f => {
+    const li = document.createElement("li");
+    li.innerText = f.name;
+    list.appendChild(li);
+  });
+}
+
+/* --- INIT --- */
+render();
+
+</script>
+
+</body>
+</html>
